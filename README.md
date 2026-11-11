@@ -7,12 +7,21 @@ This project is designed to be configured by an artist or curator without editin
 
 ### Recommended file layout
 
-Place the following files in the same directory as `index.html` and `gallery.html`:
+The app files and artist content are hosted separately. The app itself lives in a normal HTML folder, while the artist content is served from a separate directory or remote host and referenced through `?config=`.
+
+App files:
 
 ```text
-/
+app/
 ├── index.html
 ├── gallery.html
+└── README.md
+```
+
+Artist content (hosted separately or remotely):
+
+```text
+artist-content/
 ├── config.json
 ├── galleries.json
 ├── images.json
@@ -23,7 +32,14 @@ Place the following files in the same directory as `index.html` and `gallery.htm
     └── artwork-1.jpg
 ```
 
-If you want to keep the JSON files in a different folder or remote hosting location, you can pass a `?config=` URL when opening the site.
+Open the app with `?config=` set to the URL of the artist's `config.json`:
+
+```text
+https://app.example.com/index.html?config=https://artist.example.com/artist-content/config.json
+https://app.example.com/gallery.html?config=https://artist.example.com/artist-content/config.json&search=portrait
+```
+
+The app requires this parameter to load the artist site. Without it, `index.html` displays this README instead of the portfolio. The config file specifies the URLs for gallery and artwork data; relative data and image paths are resolved from the location of `config.json`.
 
 ### `config.json`
 
@@ -49,7 +65,7 @@ Field descriptions:
 - `imagesUrl`: URL to the artworks data file.
 - `searchPlaceholder`: Placeholder text shown in the search box.
 
-If `?config=` is not present, the app looks for a local `config.json` in the same folder as the HTML file.
+The app does not load a local `config.json` automatically. Pass the config file's URL via the page's `?config=` parameter.
 
 ### `galleries.json`
 
@@ -126,10 +142,9 @@ The search feature matches the query against `title`, `keywords`, and `medium`.
 
 ### Example URLs
 
-Local setup:
+Local setup with a config file in the same directory:
 
 ```text
-https://example.com/index.html
 https://example.com/index.html?config=config.json
 https://example.com/gallery.html?config=config.json&search=portrait
 ```
@@ -148,13 +163,22 @@ The application resolves relative URLs from the location of the config file. Thi
 If you host everything in a single folder, your files may look like this:
 
 ```text
-index.html
+app/
+├── index.html
 gallery.html
-config.json
-images.json
+
+artist-content/
+├── config.json
+├── images.json
 galleries.json
-logo.jpeg
-images/
+├── logo.jpeg
+└── images/
+```
+
+Use a URL like this to open the site:
+
+```text
+https://example.com/index.html?config=https://example.com/artist-content/config.json
 ```
 
 And the configuration file might be:
