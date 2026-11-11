@@ -1,3 +1,9 @@
+<!--
+Copyright (c) 2026 mkview. All rights reserved.
+
+This source code is licensed under the Boost Software License 1.0.
+See the LICENSE file for details.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,45 +14,7 @@
     :root { color-scheme: dark; --bg:#121212; --panel:#1e1e1e; --text:#e0e0e0; --accent:#007bff; }
     * { box-sizing:border-box; }
     body { margin:0; min-height:100vh; display:flex; flex-direction:column; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; }
-    header { position:sticky; top:0; z-index:2; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 20px; background:var(--panel); border-bottom:1px solid #333; }
-    .logo-container { display:flex; align-items:center; gap:10px; color:inherit; text-decoration:none; }
-    .logo-img { width:40px; height:40px; object-fit:cover; border-radius:4px; background:#333; }
-    .brand-name { font-weight:700; font-size:20px; color:#fff; }
-    nav { display:flex; gap:10px; }
-    button { cursor:pointer; }
-    .nav-link { border:0; background:none; color:inherit; font-size:15px; padding:7px 10px; }
-    main { flex:1; width:min(1200px,100%); margin:auto; padding:36px 20px; }
-    .content-section { display:none; }
-    .content-section.active { display:block; }
-    h1 { text-align:center; color:#fff; }
-    .galleries-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:24px; }
-    .gallery-card { overflow:hidden; display:flex; flex-direction:column; text-align:center; color:inherit; text-decoration:none; background:var(--panel); border-radius:8px; transition:transform .2s; }
-    .gallery-card:hover { transform:translateY(-4px); }
-    .card-img-wrapper { height:200px; background:#151515; }
-    .card-img { width:100%; height:100%; object-fit:contain; }
-    .card-info { padding:16px; color:#fff; }
-    .search-container,.info-box { margin-top:48px; padding:28px; background:var(--panel); border:1px solid #333; border-radius:8px; }
-    .search-form { display:flex; gap:10px; max-width:600px; margin:auto; }
-    .search-input { min-width:0; flex:1; padding:12px; color:#fff; background:#1a1a1a; border:1px solid #444; border-radius:4px; font-size:16px; }
-    .search-btn { padding:12px 20px; color:#fff; border:0; border-radius:4px; background:var(--accent); font-weight:700; }
-    #readme { max-width:900px; margin:32px auto; padding:clamp(20px,5vw,40px); background:var(--panel); border:1px solid #333; border-radius:8px; line-height:1.7; overflow-wrap:anywhere; }
-    #readme h1,#readme h2,#readme h3,#readme h4 { text-align:left; color:#fff; line-height:1.3; margin:1.6em 0 .6em; }
-    #readme h1 { font-size:2em; border-bottom:1px solid #444; padding-bottom:.3em; }
-    #readme h2 { font-size:1.6em; border-bottom:1px solid #444; padding-bottom:.3em; }
-    #readme h3 { font-size:1.3em; }
-    #readme p,#readme ul,#readme ol,#readme blockquote,#readme table { margin:1em 0; }
-    #readme ul,#readme ol { padding-left:2em; }
-    #readme a { color:#78b7ff; }
-    #readme blockquote { margin-left:0; padding:.2em 1em; color:#bbb; border-left:4px solid #555; }
-    #readme pre { padding:16px; overflow:auto; background:#111; border:1px solid #333; border-radius:6px; }
-    #readme code { padding:.15em .35em; background:#111; border-radius:4px; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; }
-    #readme pre code { padding:0; background:none; }
-    #readme table { display:block; overflow-x:auto; border-collapse:collapse; }
-    #readme th,#readme td { padding:8px 12px; border:1px solid #444; text-align:left; }
-    #readme th { background:#292929; }
-    #readme img { max-width:100%; height:auto; }
-    #readme hr { border:0; border-top:1px solid #444; margin:2em 0; }
-    @media(max-width:700px) { header { flex-direction:column; } nav { width:100%; justify-content:space-around; } main { padding:20px 12px; } .galleries-grid { grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:14px; } .card-img-wrapper { height:130px; } .search-form { flex-direction:column; } }
+    header { position:sticky; top:0; z-index:2; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 20px; background:var(--panel); border-bottom:1px solid #333;[...]
   </style>
   <script defer src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
