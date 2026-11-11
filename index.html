@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Artist Portfolio</title>
+  <style>
+    :root { color-scheme: dark; --bg:#121212; --panel:#1e1e1e; --text:#e0e0e0; --accent:#007bff; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; display:flex; flex-direction:column; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; }
+    header { position:sticky; top:0; z-index:2; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 20px; background:var(--panel); border-bottom:1px solid #333; }
+    .logo-container { display:flex; align-items:center; gap:10px; color:inherit; text-decoration:none; }
+    .logo-img { width:40px; height:40px; object-fit:cover; border-radius:4px; background:#333; }
+    .brand-name { font-weight:700; font-size:20px; color:#fff; }
+    nav { display:flex; gap:10px; }
+    button { cursor:pointer; }
+    .nav-link { border:0; background:none; color:inherit; font-size:15px; padding:7px 10px; }
+    main { flex:1; width:min(1200px,100%); margin:auto; padding:36px 20px; }
+    .content-section { display:none; }
+    .content-section.active { display:block; }
+    h1 { text-align:center; color:#fff; }
+    .galleries-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:24px; }
+    .gallery-card { overflow:hidden; display:flex; flex-direction:column; text-align:center; color:inherit; text-decoration:none; background:var(--panel); border-radius:8px; transition:transform .2s; }
+    .gallery-card:hover { transform:translateY(-4px); }
+    .card-img-wrapper { height:200px; background:#151515; }
+    .card-img { width:100%; height:100%; object-fit:contain; }
+    .card-info { padding:16px; color:#fff; }
+    .search-container,.info-box { margin-top:48px; padding:28px; background:var(--panel); border:1px solid #333; border-radius:8px; }
+    .search-form { display:flex; gap:10px; max-width:600px; margin:auto; }
+    .search-input { min-width:0; flex:1; padding:12px; color:#fff; background:#1a1a1a; border:1px solid #444; border-radius:4px; font-size:16px; }
+    .search-btn { padding:12px 20px; color:#fff; border:0; border-radius:4px; background:var(--accent); font-weight:700; }
+    #readme { max-width:900px; margin:32px auto; padding:clamp(20px,5vw,40px); background:var(--panel); border:1px solid #333; border-radius:8px; line-height:1.7; overflow-wrap:anywhere; }
+    #readme h1,#readme h2,#readme h3,#readme h4 { text-align:left; color:#fff; line-height:1.3; margin:1.6em 0 .6em; }
+    #readme h1 { font-size:2em; border-bottom:1px solid #444; padding-bottom:.3em; }
+    #readme h2 { font-size:1.6em; border-bottom:1px solid #444; padding-bottom:.3em; }
+    #readme h3 { font-size:1.3em; }
+    #readme p,#readme ul,#readme ol,#readme blockquote,#readme table { margin:1em 0; }
+    #readme ul,#readme ol { padding-left:2em; }
+    #readme a { color:#78b7ff; }
+    #readme blockquote { margin-left:0; padding:.2em 1em; color:#bbb; border-left:4px solid #555; }
+    #readme pre { padding:16px; overflow:auto; background:#111; border:1px solid #333; border-radius:6px; }
+    #readme code { padding:.15em .35em; background:#111; border-radius:4px; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; }
+    #readme pre code { padding:0; background:none; }
+    #readme table { display:block; overflow-x:auto; border-collapse:collapse; }
+    #readme th,#readme td { padding:8px 12px; border:1px solid #444; text-align:left; }
+    #readme th { background:#292929; }
+    #readme img { max-width:100%; height:auto; }
+    #readme hr { border:0; border-top:1px solid #444; margin:2em 0; }
+    @media(max-width:700px) { header { flex-direction:column; } nav { width:100%; justify-content:space-around; } main { padding:20px 12px; } .galleries-grid { grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:14px; } .card-img-wrapper { height:130px; } .search-form { flex-direction:column; } }
+  </style>
+  <script defer src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
+</head>
+<body>
+  <div id="artistApp">
+    <header>
+      <a class="logo-container" href="index.html"><img class="logo-img" src="logo.jpeg" alt="Logo" onerror="this.style.display='none'"><span class="brand-name">Artist Portfolio</span></a>
+      <nav>
+        <button class="nav-link" onclick="showSection('home-section')">Home</button>
+        <button class="nav-link" onclick="scrollToSearch()">Search</button>
+        <button class="nav-link" onclick="showSection('about-section')">About</button>
+        <button class="nav-link" onclick="showSection('contact-section')">Contact</button>
+      </nav>
+    </header>
+    <main>
+      <section id="home-section" class="content-section active">
+        <div id="galleriesGrid" class="galleries-grid"></div>
+        <div class="search-container" id="searchContainer">
+          <form class="search-form" onsubmit="handleSearch(event)">
+            <input id="searchInput" class="search-input" type="search" placeholder="Search artwork...">
+            <button class="search-btn" type="submit">Search</button>
+          </form>
+        </div>
+      </section>
+      <section id="about-section" class="content-section"><h1>About</h1><div class="info-box"><p>Artist information can be added here.</p></div></section>
+      <section id="contact-section" class="content-section"><h1>Contact</h1><div class="info-box"><p>Contact information can be added here.</p></div></section>
+    </main>
+  </div>
+  <script>
+    const DEFAULT_CONFIG = { brandName:'Artist Portfolio', logoUrl:'logo.jpeg', galleriesUrl:'galleries.json', imagesUrl:'images.json', searchPlaceholder:'Search artwork...' };
+    let siteConfig;
+
+    function showReadme() {
+      document.getElementById('artistApp').hidden = true;
+      document.title = 'ErWeb — README';
+      const readme = document.createElement('article');
+      readme.id = 'readme';
+      readme.setAttribute('aria-live', 'polite');
+      readme.textContent = 'Loading README.md…';
+      document.body.appendChild(readme);
+      fetch('README.md').then(response => {
+        if (!response.ok) throw new Error(`Could not load README.md (${response.status})`);
+        return response.text();
+      }).then(markdown => {
+        if (window.marked && window.DOMPurify) {
+          readme.innerHTML = DOMPurify.sanitize(marked.parse(markdown));
+        } else {
+          // Keep the README legible if the Markdown libraries cannot be reached.
+          const plainText = document.createElement('pre');
+          plainText.style.whiteSpace = 'pre-wrap';
+          plainText.style.font = 'inherit';
+          plainText.textContent = markdown;
+          readme.replaceChildren(plainText);
+        }
+      }).catch(error => {
+        readme.textContent = `${error.message}\n\nView README.md on GitHub: https://github.com/mkhaymov/ErWeb/blob/sample-artist/README.md`;
+      });
+    }
+    function getConfigUrl() {
+      const requested = new URLSearchParams(location.search).get('config');
+      return requested ? new URL(requested, location.href).href : new URL('config.json', location.href).href;
+    }
+    function resolveDataUrl(value, fallback, configUrl) {
+      return new URL(value || fallback, configUrl).href;
+    }
+    function makeViewerUrl(pageName, params = {}) {
+      const url = new URL(pageName, location.href);
+      url.search = '';
+      url.searchParams.set('config', siteConfig.configUrl);
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, String(value));
+      });
+      return url.href;
+    }
+    async function loadSiteConfig() {
+      const configUrl = getConfigUrl();
+      const response = await fetch(configUrl);
+      if (!response.ok) throw new Error(`Could not load configuration from ${configUrl}`);
+      const data = await response.json();
+      return {
+        configUrl,
+        brandName: data.brandName || data.brand_name || DEFAULT_CONFIG.brandName,
+        logoUrl: resolveDataUrl(data.logoUrl || data.logo_url, DEFAULT_CONFIG.logoUrl, configUrl),
+        galleriesUrl: resolveDataUrl(data.galleriesUrl || data.galleries_url, DEFAULT_CONFIG.galleriesUrl, configUrl),
+        imagesUrl: resolveDataUrl(data.imagesUrl || data.images_url, DEFAULT_CONFIG.imagesUrl, configUrl),
+        searchPlaceholder: data.searchPlaceholder || data.search_placeholder || DEFAULT_CONFIG.searchPlaceholder
+      };
+    }
+    async function loadHub() {
+      const grid = document.getElementById('galleriesGrid');
+      try {
+        siteConfig = await loadSiteConfig();
+        document.title = siteConfig.brandName;
+        document.querySelector('.brand-name').textContent = siteConfig.brandName;
+        document.querySelector('.logo-img').src = siteConfig.logoUrl;
+        document.getElementById('searchInput').placeholder = siteConfig.searchPlaceholder;
+        const response = await fetch(siteConfig.galleriesUrl);
+        if (!response.ok) throw new Error(`Could not load galleries from ${siteConfig.galleriesUrl}`);
+        const galleries = await response.json();
+        galleries.forEach(gallery => {
+          const card = document.createElement('a');
+          card.className = 'gallery-card';
+          card.href = makeViewerUrl('gallery.html', { search: gallery.searchCriteria || '' });
+          const wrapper = document.createElement('div');
+          wrapper.className = 'card-img-wrapper';
+          const image = document.createElement('img');
+          image.className = 'card-img';
+          image.alt = gallery.title || '';
+          image.src = new URL(gallery.coverUrl || '', siteConfig.galleriesUrl).href;
+          const info = document.createElement('div');
+          info.className = 'card-info';
+          const title = document.createElement('h3');
+          title.textContent = gallery.title || '';
+          wrapper.appendChild(image); info.appendChild(title); card.append(wrapper, info); grid.appendChild(card);
+        });
+      } catch (error) {
+        console.error('Error loading configuration or galleries:', error);
+        grid.textContent = 'Unable to load galleries. Check the configuration URL and artist data.';
+      }
+    }
+    function showSection(id) {
+      document.querySelectorAll('.content-section').forEach(section => section.classList.toggle('active', section.id === id));
+      if (id === 'home-section') scrollTo({ top:0, behavior:'smooth' });
+    }
+    function scrollToSearch() {
+      showSection('home-section');
+      setTimeout(() => { document.getElementById('searchContainer').scrollIntoView({ behavior:'smooth' }); document.getElementById('searchInput').focus(); }, 100);
+    }
+    function handleSearch(event) {
+      event.preventDefault();
+      const query = document.getElementById('searchInput').value.trim();
+      if (query && siteConfig) location.href = makeViewerUrl('gallery.html', { search:query });
+    }
+    window.addEventListener('load', () => {
+      if (new URLSearchParams(location.search).has('config')) loadHub();
+      else showReadme();
+    });
+  </script>
+</body>
+</html>
