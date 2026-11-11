@@ -16,10 +16,32 @@ See the LICENSE file in this repository for the full license text.
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Artist Portfolio</title>
   <style>
-    :root { color-scheme: dark; --bg:#121212; --panel:#1e1e1e; --text:#e0e0e0; --accent:#007bff; }
+    :root { color-scheme:dark; --bg:#121212; --panel:#1e1e1e; --text:#e0e0e0; --accent:#007bff; }
     * { box-sizing:border-box; }
     body { margin:0; min-height:100vh; display:flex; flex-direction:column; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; }
-    header { position:sticky; top:0; z-index:2; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 20px; background:var(--panel); border-bottom:1px solid #333;[...]
+    header { position:sticky; top:0; z-index:2; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 20px; background:var(--panel); border-bottom:1px solid #333; }
+    .logo-container { display:flex; align-items:center; gap:10px; color:inherit; text-decoration:none; }
+    .logo-img { width:35px; height:35px; object-fit:cover; border-radius:4px; background:#333; }
+    .brand-name { color:#fff; font-weight:700; }
+    nav { display:flex; gap:8px; }
+    .nav-link,.search-btn { padding:9px 14px; color:#fff; background:#333; border:0; border-radius:4px; cursor:pointer; }
+    .nav-link:hover,.search-btn:hover { background:var(--accent); }
+    main { width:min(1200px,100%); margin:0 auto; padding:24px; flex:1; }
+    .content-section { display:none; }
+    .content-section.active { display:block; }
+    .galleries-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:20px; }
+    .gallery-card { overflow:hidden; color:inherit; text-decoration:none; background:var(--panel); border:1px solid #333; border-radius:6px; }
+    .card-img-wrapper { height:200px; background:#151515; }
+    .card-img { width:100%; height:100%; object-fit:cover; }
+    .card-info { padding:12px; }
+    .card-info h3 { margin:0; color:#fff; }
+    .search-container { margin-top:28px; }
+    .search-form { display:flex; gap:8px; max-width:600px; margin:auto; }
+    .search-input { min-width:0; flex:1; padding:11px; color:var(--text); background:var(--panel); border:1px solid #444; border-radius:4px; }
+    .info-box { padding:16px; background:var(--panel); border:1px solid #333; border-radius:6px; }
+    #readme { max-width:900px; margin:32px auto; padding:24px; line-height:1.6; }
+    #readme pre { white-space:pre-wrap; }
+    @media(max-width:650px) { header { align-items:flex-start; flex-direction:column; } nav { flex-wrap:wrap; } main { padding:16px; } }
   </style>
   <script defer src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
@@ -27,7 +49,7 @@ See the LICENSE file in this repository for the full license text.
 <body>
   <div id="artistApp">
     <header>
-      <a class="logo-container" href="index.html"><img class="logo-img" src="logo.jpeg" alt="Logo" onerror="this.style.display='none'"><span class="brand-name">Artist Portfolio</span></a>
+      <a class="logo-container" href="index.html"><img class="logo-img" alt="Logo" onerror="this.style.display='none'"><span class="brand-name">Artist Portfolio</span></a>
       <nav>
         <button class="nav-link" onclick="showSection('home-section')">Home</button>
         <button class="nav-link" onclick="scrollToSearch()">Search</button>
@@ -50,12 +72,12 @@ See the LICENSE file in this repository for the full license text.
     </main>
   </div>
   <script>
-    const DEFAULT_CONFIG = { brandName:'Artist Portfolio', logoUrl:'logo.jpeg', galleriesUrl:'galleries.json', imagesUrl:'images.json', searchPlaceholder:'Search artwork...' };
+    const DEFAULT_CONFIG = { brandName:'Artist Portfolio', searchPlaceholder:'Search artwork...' };
     let siteConfig;
 
     function showReadme() {
       document.getElementById('artistApp').hidden = true;
-      document.title = 'ErWeb — README';
+      document.title = 'Art — README';
       const readme = document.createElement('article');
       readme.id = 'readme';
       readme.setAttribute('aria-live', 'polite');
@@ -68,7 +90,6 @@ See the LICENSE file in this repository for the full license text.
         if (window.marked && window.DOMPurify) {
           readme.innerHTML = DOMPurify.sanitize(marked.parse(markdown));
         } else {
-          // Keep the README legible if the Markdown libraries cannot be reached.
           const plainText = document.createElement('pre');
           plainText.style.whiteSpace = 'pre-wrap';
           plainText.style.font = 'inherit';
@@ -76,15 +97,18 @@ See the LICENSE file in this repository for the full license text.
           readme.replaceChildren(plainText);
         }
       }).catch(error => {
-        readme.textContent = `${error.message}\n\nView README.md on GitHub: https://github.com/mkhaymov/ErWeb/blob/sample-artist/README.md`;
+        readme.textContent = `${error.message}\n\nView README.md on GitHub: https://github.com/mkview/Art/blob/main/README.md`;
       });
     }
     function getConfigUrl() {
       const requested = new URLSearchParams(location.search).get('config');
-      return requested ? new URL(requested, location.href).href : new URL('config.json', location.href).href;
+      return requested ? new URL(requested, location.href).href : null;
     }
-    function resolveDataUrl(value, fallback, configUrl) {
-      return new URL(value || fallback, configUrl).href;
+    function resolveDataUrl(value, field, configUrl) {
+      if (typeof value !== 'string' || !value.trim()) {
+        throw new Error(`The supplied config must specify ${field}.`);
+      }
+      return new URL(value, configUrl).href;
     }
     function makeViewerUrl(pageName, params = {}) {
       const url = new URL(pageName, location.href);
@@ -97,15 +121,16 @@ See the LICENSE file in this repository for the full license text.
     }
     async function loadSiteConfig() {
       const configUrl = getConfigUrl();
+      if (!configUrl) throw new Error('Provide the artist config URL using ?config=...');
       const response = await fetch(configUrl);
       if (!response.ok) throw new Error(`Could not load configuration from ${configUrl}`);
       const data = await response.json();
       return {
         configUrl,
         brandName: data.brandName || data.brand_name || DEFAULT_CONFIG.brandName,
-        logoUrl: resolveDataUrl(data.logoUrl || data.logo_url, DEFAULT_CONFIG.logoUrl, configUrl),
-        galleriesUrl: resolveDataUrl(data.galleriesUrl || data.galleries_url, DEFAULT_CONFIG.galleriesUrl, configUrl),
-        imagesUrl: resolveDataUrl(data.imagesUrl || data.images_url, DEFAULT_CONFIG.imagesUrl, configUrl),
+        logoUrl: resolveDataUrl(data.logoUrl || data.logo_url, 'logoUrl', configUrl),
+        galleriesUrl: resolveDataUrl(data.galleriesUrl || data.galleries_url, 'galleriesUrl', configUrl),
+        imagesUrl: resolveDataUrl(data.imagesUrl || data.images_url, 'imagesUrl', configUrl),
         searchPlaceholder: data.searchPlaceholder || data.search_placeholder || DEFAULT_CONFIG.searchPlaceholder
       };
     }
@@ -138,7 +163,7 @@ See the LICENSE file in this repository for the full license text.
         });
       } catch (error) {
         console.error('Error loading configuration or galleries:', error);
-        grid.textContent = 'Unable to load galleries. Check the configuration URL and artist data.';
+        grid.textContent = `Unable to load galleries: ${error.message}`;
       }
     }
     function showSection(id) {
