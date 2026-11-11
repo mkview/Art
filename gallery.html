@@ -1,3 +1,14 @@
+<!--
+Project: Art
+Repository: https://github.com/mkview/Art
+Description: Artist portfolio and gallery web application.
+
+Copyright (c) 2026 mkview. All rights reserved.
+
+This source file is part of the Art project and is licensed under the
+Boost Software License 1.0 (BSL-1.0).
+See the LICENSE file in this repository for the full license text.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -149,7 +160,7 @@
       else if (event.touches.length === 1) { touchStartX = event.touches[0].clientX; touchStartY = event.touches[0].clientY; if (scale > 1) { startX = touchStartX-pointX; startY = touchStartY-pointY; isPanning = true; } }
     });
     stage.addEventListener('touchmove', event => {
-      if (event.touches.length === 2) { event.preventDefault(); const dist = Math.hypot(event.touches[0].clientX-event.touches[1].clientX,event.touches[0].clientY-event.touches[1].clientY); if (lastTouchDist) scale = Math.min(5,Math.max(1,scale*dist/lastTouchDist)); lastTouchDist = dist; updateTransform(); }
+      if (event.touches.length === 2) { event.preventDefault(); const dist = Math.hypot(event.touches[0].clientX-event.touches[1].clientX,event.touches[0].clientY-event.touches[1].clientY); if (lastTouchDist) scale = Math.min(5,Math.max(1,scale * dist / lastTouchDist)); lastTouchDist = dist; if (scale === 1) { pointX = 0; pointY = 0; } updateTransform(); }
       else if (event.touches.length === 1 && isPanning) { event.preventDefault(); pointX = event.touches[0].clientX-startX; pointY = event.touches[0].clientY-startY; updateTransform(); }
     }, { passive:false });
     stage.addEventListener('touchend', event => {
@@ -163,7 +174,7 @@
     async function loadGalleryTitle() {
       const query = getSearchQuery(); if (!query) return;
       const titleEl = document.getElementById('galleryTitle');
-      try { const response = await fetch(siteConfig.galleriesUrl); if (!response.ok) throw new Error('Could not load galleries'); const galleries = await response.json(); const current = galleries.find(item => (item.searchCriteria || '').trim().toLowerCase() === query); titleEl.textContent = `• ${current?.title || query.charAt(0).toUpperCase()+query.slice(1)}`; }
+      try { const response = await fetch(siteConfig.galleriesUrl); if (!response.ok) throw new Error('Could not load galleries'); const galleries = await response.json(); const current = galleries.find(gallery => (gallery.searchCriteria || '').trim().toLowerCase() === query); titleEl.textContent = `• ${current?.title || query.charAt(0).toUpperCase()+query.slice(1)}`; }
       catch (error) { console.error(error); titleEl.textContent = `• ${query}`; }
     }
     window.addEventListener('load', async () => {
