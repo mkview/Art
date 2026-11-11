@@ -45,7 +45,7 @@ See the LICENSE file in this repository for the full license text.
     .metadata { padding:14px 20px; text-align:center; background:var(--panel); border-top:1px solid #333; }
     .metadata h2 { margin:0 0 5px; color:white; font-size:18px; }
     .metadata p { margin:4px 0; color:#aaa; font-size:14px; }
-    @media(max-width:700px) { header { flex-direction:column; } .grid-view { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); padding:12px; gap:12px; } .preview-frame { height:150px; } .nav-arrow { display:none; } .single-view { position:fixed; } }
+    @media(max-width:700px) { header { flex-direction:column; } .grid-view { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); padding:12px; gap:12px; } .preview-frame { height:150px; } .nav-arrow { display:none; } .single-view { position:fixed; z-index:5; } .image-stage { height:70vh; flex:none; } .metadata { padding:18px 12px; } }
   </style>
 </head>
 <body>
@@ -83,21 +83,16 @@ See the LICENSE file in this repository for the full license text.
       const requested = new URLSearchParams(location.search).get('config');
       return requested ? new URL(requested, location.href).href : new URL('config.json', location.href).href;
     }
-
-    function resolveDataUrl(value, fallback, configUrl) {
-      return new URL(value || fallback, configUrl).href;
-    }
-
+    function resolveDataUrl(value, fallback, configUrl) { return new URL(value || fallback, configUrl).href; }
     function makeViewerUrl(pageName, params = {}) {
       const url = new URL(pageName, location.href);
       url.search = '';
-      if (siteConfig && siteConfig.configUrl) url.searchParams.set('config', siteConfig.configUrl);
+      if (siteConfig?.configUrl) url.searchParams.set('config', siteConfig.configUrl);
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, String(value));
       });
       return url.href;
     }
-
     async function loadSiteConfig() {
       const configUrl = getConfigUrl();
       const response = await fetch(configUrl);
@@ -112,7 +107,6 @@ See the LICENSE file in this repository for the full license text.
         measurementUnits: data.measurementUnits || data.measurement_units || ''
       };
     }
-
     function applyBranding() {
       document.title = siteConfig.brandName;
       document.querySelector('.brand-name').textContent = siteConfig.brandName;
@@ -120,242 +114,124 @@ See the LICENSE file in this repository for the full license text.
       document.getElementById('logoLink').href = makeViewerUrl('index.html');
       homeHubBtn.href = makeViewerUrl('index.html');
     }
-
-    function getSearchQuery() {
-      return (new URLSearchParams(location.search).get('search') || '').trim().toLowerCase();
-    }
-
+    function getSearchQuery() { return (new URLSearchParams(location.search).get('search') || '').trim().toLowerCase(); }
     function formatDimensions(item) {
       const unit = siteConfig?.measurementUnits ? String(siteConfig.measurementUnits).trim() : '';
-      const hasNumericSize = item && Number.isFinite(Number(item.width)) && Number.isFinite(Number(item.height));
-
-      if (hasNumericSize) {
-        const width = Number(item.width);
-        const height = Number(item.height);
-        return `${width}${unit} × ${height}${unit}`;
+      if (item && item.width !== undefined && item.height !== undefined && item.width !== null && item.height !== null) {
+        return `${item.width}${unit} × ${item.height}${unit}`;
       }
-
-      return item && (item.dimensions || item.size) ? (item.dimensions || item.size) : '';
+      return item?.dimensions || '';
     }
-
+    function formatMedium(item) {
+      const medium = item.medium || '';
+      const technic = item.technic || '';
+      if (medium && technic) return `${medium} (${technic})`;
+      return medium || technic;
+    }
     async function initCatalog() {
       const response = await fetch(siteConfig.imagesUrl);
       if (!response.ok) throw new Error(`Could not load images from ${siteConfig.imagesUrl}`);
       allImages = await response.json();
-      allImages.forEach(image => {
-        if (image.url) image.url = new URL(image.url, siteConfig.imagesUrl).href;
-      });
-
+      allImages.forEach(image => { if (image.url) image.url = new URL(image.url, siteConfig.imagesUrl).href; });
       const query = getSearchQuery();
-      filteredImages = query
-        ? allImages.filter(image => [image.title, image.keywords, image.medium].some(value => (value || '').toLowerCase().includes(query)))
-        : [...allImages];
+      filteredImages = query ? allImages.filter(image => [image.title,image.keywords,image.medium].some(value => (value || '').toLowerCase().includes(query))) : [...allImages];
       renderGrid();
     }
-
     function renderGrid() {
       workspace.classList.remove('show-single');
-      backToGridBtn.style.display = 'none';
-      fsBtn.style.display = 'none';
-      homeHubBtn.style.display = '';
+      backToGridBtn.style.display = 'none'; fsBtn.style.display = 'none'; homeHubBtn.style.display = '';
       gridView.replaceChildren();
-
-      if (!filteredImages.length) {
-        gridView.textContent = 'No matching artworks found.';
-        return;
-      }
-
-      filteredImages.forEach((image, index) => {
-        const card = document.createElement('article');
-        card.className = 'preview-card';
-        card.onclick = () => launchSingleView(index);
-
-        const frame = document.createElement('div');
-        frame.className = 'preview-frame';
-        const img = document.createElement('img');
-        img.src = image.url;
-        img.alt = image.title || 'Artwork';
-        frame.appendChild(img);
-
-        const info = document.createElement('div');
-        info.className = 'preview-info';
-        const title = document.createElement('h3');
-        title.textContent = image.title || 'Untitled';
-        const details = document.createElement('p');
-        details.textContent = `${image.medium || 'N/A'} • ${image.year || 'Unknown'}`;
-
-        info.append(title, details);
-        card.append(frame, info);
-        gridView.appendChild(card);
+      if (!filteredImages.length) { gridView.textContent = 'No matching artworks found.'; return; }
+      filteredImages.forEach((image,index) => {
+        const card = document.createElement('article'); card.className = 'preview-card'; card.onclick = () => launchSingleView(index);
+        const frame = document.createElement('div'); frame.className = 'preview-frame';
+        const img = document.createElement('img'); img.src = image.url; img.alt = image.title || 'Artwork'; frame.appendChild(img);
+        const info = document.createElement('div'); info.className = 'preview-info';
+        const title = document.createElement('h3'); title.textContent = image.title || 'Untitled';
+        const details = document.createElement('p'); details.textContent = `${formatMedium(image) || 'N/A'} • ${image.year || 'Unknown'}`;
+        info.append(title,details); card.append(frame,info); gridView.appendChild(card);
       });
     }
-
     function launchSingleView(index) {
-      currentIndex = index;
-      workspace.classList.add('show-single');
-      backToGridBtn.style.display = '';
-      fsBtn.style.display = '';
-      homeHubBtn.style.display = 'none';
-      renderActiveImage();
+      currentIndex = index; workspace.classList.add('show-single');
+      backToGridBtn.style.display = ''; fsBtn.style.display = ''; homeHubBtn.style.display = 'none'; renderActiveImage();
     }
-
-    function exitToGrid() {
-      resetZoom();
-      if (document.fullscreenElement) document.exitFullscreen();
-      renderGrid();
-    }
-
+    function exitToGrid() { resetZoom(); if (document.fullscreenElement) document.exitFullscreen(); renderGrid(); }
     function renderActiveImage() {
-      resetZoom();
-      const item = filteredImages[currentIndex];
-      if (!item) return;
-
+      resetZoom(); const item = filteredImages[currentIndex]; if (!item) return;
       galleryImg.src = item.url;
       document.getElementById('metaTitle').textContent = item.title || 'Untitled';
-      document.getElementById('metaDetails').textContent = [
-        item.medium,
-        item.technic,
-        formatDimensions(item),
-        item.year
-      ].filter(Boolean).join(' • ');
+      document.getElementById('metaDetails').textContent = [formatMedium(item),formatDimensions(item),item.year].filter(Boolean).join(' • ');
       document.getElementById('metaKeywords').textContent = item.keywords ? `Keywords: ${item.keywords}` : '';
     }
-
     function navigate(direction) {
       if (!filteredImages.length) return;
-      currentIndex = (currentIndex + direction + filteredImages.length) % filteredImages.length;
-      renderActiveImage();
+      currentIndex = (currentIndex + direction + filteredImages.length) % filteredImages.length; renderActiveImage();
     }
-
-    function updateTransform() {
-      imgWrapper.style.transform = `translate(${pointX}px,${pointY}px) scale(${scale})`;
-    }
-
-    function resetZoom() {
-      scale = 1;
-      pointX = 0;
-      pointY = 0;
-      updateTransform();
-    }
-
+    function updateTransform() { imgWrapper.style.transform = `translate(${pointX}px,${pointY}px) scale(${scale})`; }
+    function resetZoom() { scale = 1; pointX = 0; pointY = 0; updateTransform(); }
     stage.addEventListener('wheel', event => {
       if (!workspace.classList.contains('show-single')) return;
-      event.preventDefault();
-      scale = Math.min(5, Math.max(1, scale + (event.deltaY < 0 ? .1 : -.1)));
-      if (scale === 1) { pointX = 0; pointY = 0; }
-      updateTransform();
+      event.preventDefault(); scale = Math.min(5,Math.max(1,scale + (event.deltaY < 0 ? .1 : -.1)));
+      if (scale === 1) { pointX = 0; pointY = 0; } updateTransform();
     }, { passive:false });
-
     imgWrapper.addEventListener('mousedown', event => {
-      if (scale === 1) return;
-      event.preventDefault();
-      startX = event.clientX - pointX;
-      startY = event.clientY - pointY;
-      isPanning = true;
+      if (scale === 1) return; event.preventDefault(); startX = event.clientX-pointX; startY = event.clientY-pointY; isPanning = true;
     });
-
-    window.addEventListener('mousemove', event => {
-      if (!isPanning) return;
-      pointX = event.clientX - startX;
-      pointY = event.clientY - startY;
-      updateTransform();
-    });
-
-    window.addEventListener('mouseup', () => {
-      isPanning = false;
-    });
-
+    window.addEventListener('mousemove', event => { if (!isPanning) return; pointX = event.clientX-startX; pointY = event.clientY-startY; updateTransform(); });
+    window.addEventListener('mouseup', () => { isPanning = false; });
     stage.addEventListener('touchstart', event => {
-      if (event.touches.length === 2) {
-        lastTouchDist = Math.hypot(
-          event.touches[0].clientX - event.touches[1].clientX,
-          event.touches[0].clientY - event.touches[1].clientY
-        );
-      } else if (event.touches.length === 1) {
-        touchStartX = event.touches[0].clientX;
-        touchStartY = event.touches[0].clientY;
-        if (scale > 1) {
-          startX = touchStartX - pointX;
-          startY = touchStartY - pointY;
-          isPanning = true;
-        }
+      if (event.touches.length === 2) lastTouchDist = Math.hypot(event.touches[0].clientX-event.touches[1].clientX,event.touches[0].clientY-event.touches[1].clientY);
+      else if (event.touches.length === 1) {
+        touchStartX = event.touches[0].clientX; touchStartY = event.touches[0].clientY;
+        if (scale > 1) { startX = touchStartX-pointX; startY = touchStartY-pointY; isPanning = true; }
       }
     });
-
     stage.addEventListener('touchmove', event => {
       if (event.touches.length === 2) {
         event.preventDefault();
-        const dist = Math.hypot(
-          event.touches[0].clientX - event.touches[1].clientX,
-          event.touches[0].clientY - event.touches[1].clientY
-        );
-        if (lastTouchDist) {
-          scale = Math.min(5, Math.max(1, scale * (dist / lastTouchDist)));
-          lastTouchDist = dist;
-        }
-        if (scale === 1) { pointX = 0; pointY = 0; }
-        updateTransform();
+        const dist = Math.hypot(event.touches[0].clientX-event.touches[1].clientX,event.touches[0].clientY-event.touches[1].clientY);
+        if (lastTouchDist) scale = Math.min(5,Math.max(1,scale * dist / lastTouchDist));
+        lastTouchDist = dist; if (scale === 1) { pointX = 0; pointY = 0; } updateTransform();
       } else if (event.touches.length === 1 && isPanning) {
-        event.preventDefault();
-        pointX = event.touches[0].clientX - startX;
-        pointY = event.touches[0].clientY - startY;
-        updateTransform();
+        event.preventDefault(); pointX = event.touches[0].clientX-startX; pointY = event.touches[0].clientY-startY; updateTransform();
       }
     }, { passive:false });
-
     stage.addEventListener('touchend', event => {
       if (!event.touches.length && isPanning) isPanning = false;
       if (scale === 1 && event.changedTouches.length === 1) {
-        const dx = event.changedTouches[0].clientX - touchStartX;
-        const dy = event.changedTouches[0].clientY - touchStartY;
-        if (Math.abs(dx) > 60 && Math.abs(dy) < 40) navigate(dx > 0 ? -1 : 1);
+        const dx = event.changedTouches[0].clientX-touchStartX; const dy = event.changedTouches[0].clientY-touchStartY;
+        if (Math.abs(dx)>60 && Math.abs(dy)<40) navigate(dx>0?-1:1);
       }
     });
-
     function toggleFullScreen() {
-      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
-      else document.exitFullscreen?.();
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.();
     }
-
     document.addEventListener('fullscreenchange', () => {
       document.body.classList.toggle('fullscreen-mode', Boolean(document.fullscreenElement));
       if (!document.fullscreenElement) resetZoom();
     });
-
     imgWrapper.addEventListener('click', toggleFullScreen);
-
     window.addEventListener('keydown', event => {
       if (!workspace.classList.contains('show-single')) return;
       if (event.key === 'ArrowRight') navigate(1);
       if (event.key === 'ArrowLeft') navigate(-1);
       if (event.key === 'Escape' && !document.fullscreenElement) exitToGrid();
     });
-
     async function loadGalleryTitle() {
-      const query = getSearchQuery();
-      if (!query) return;
+      const query = getSearchQuery(); if (!query) return;
       const titleEl = document.getElementById('galleryTitle');
       try {
         const response = await fetch(siteConfig.galleriesUrl);
         if (!response.ok) throw new Error('Could not load galleries');
         const galleries = await response.json();
         const current = galleries.find(gallery => (gallery.searchCriteria || '').trim().toLowerCase() === query);
-        titleEl.textContent = current ? `• ${current.title}` : `• ${query}`;
-      } catch (error) {
-        console.error(error);
-        titleEl.textContent = `• ${query}`;
-      }
+        titleEl.textContent = `• ${current?.title || query.charAt(0).toUpperCase()+query.slice(1)}`;
+      } catch (error) { console.error(error); titleEl.textContent = `• ${query}`; }
     }
-
     window.addEventListener('load', async () => {
-      try {
-        siteConfig = await loadSiteConfig();
-        applyBranding();
-        await Promise.all([initCatalog(), loadGalleryTitle()]);
-      } catch (error) {
-        console.error(error);
-        gridView.textContent = 'Unable to load configuration or artwork data. Check the config URL.';
-      }
+      try { siteConfig = await loadSiteConfig(); applyBranding(); await Promise.all([initCatalog(),loadGalleryTitle()]); }
+      catch (error) { console.error(error); gridView.textContent = 'Unable to load configuration or artwork data. Check the config URL.'; }
     });
   </script>
 </body>
