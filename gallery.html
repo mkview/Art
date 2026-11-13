@@ -45,7 +45,7 @@ See the LICENSE file in this repository for the full license text.
     .metadata { padding:14px 20px; text-align:center; background:var(--panel); border-top:1px solid #333; }
     .metadata h2 { margin:0 0 5px; color:white; font-size:18px; }
     .metadata p { margin:4px 0; color:#aaa; font-size:14px; }
-    @media(max-width:700px) { header { flex-direction:column; } .grid-view { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); padding:12px; gap:12px; } .preview-frame { height:150px; } .nav-arrow { display:none; } .single-view { position:fixed; z-index:5; } .image-stage { height:70vh; flex:none; } .metadata { padding:18px 12px; } }
+    @media(max-width:700px) { header { flex-direction:column; } .grid-view { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); padding:12px; gap:12px; } .preview-frame { height:150px; } }
   </style>
   <script defer src="https://cdn.jsdelivr.net/npm/exifreader@4.23.5/dist/exif-reader.min.js"></script>
 </head>
@@ -118,6 +118,9 @@ See the LICENSE file in this repository for the full license text.
       homeHubBtn.href = makeViewerUrl('index.html');
     }
     function getSearchQuery() { return (new URLSearchParams(location.search).get('search') || '').trim().toLowerCase(); }
+    function splitSearchTerms(query) {
+      return [...new Set((query || '').split(/[\s,]+/).map(term => term.trim().toLowerCase()).filter(Boolean))];
+    }
 
     function metadataText(tag) {
       if (!tag) return '';
@@ -212,9 +215,13 @@ See the LICENSE file in this repository for the full license text.
         allImages = await response.json();
         allImages.forEach(image => { if (image.url) image.url = new URL(image.url, siteConfig.imagesUrl).href; });
       }
-      const query = getSearchQuery();
-      filteredImages = query
-        ? allImages.filter(image => [image.title, image.keywords, image.medium, image.technic].some(value => (value || '').toLowerCase().includes(query)))
+
+      const terms = splitSearchTerms(getSearchQuery());
+      filteredImages = terms.length
+        ? allImages.filter(image => {
+            const haystacks = [image.title, image.keywords, image.medium, image.technic].map(value => (value || '').toLowerCase());
+            return terms.some(term => haystacks.some(value => value.includes(term)));
+          })
         : [...allImages];
       renderGrid();
     }
