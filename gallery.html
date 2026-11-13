@@ -206,21 +206,28 @@ See the LICENSE file in the repository for the full license text.
       if (!window.ExifReader) throw new Error('JPEG metadata reader failed to load');
       return imageFromMetadata(url, ExifReader.load(buffer));
     }
-    function toGitHubContentsUrl(folderUrl) {
-      try {
-        const url = new URL(folderUrl);
-        const match = url.hostname === 'github.com' && url.pathname.match(/^\/([^/]+)\/([^/]+)\/tree\/[^/]+\/(.+)$/);
-        if (!match) return null;
-        const [, owner, repo, path] = match;
-        const cleanPath = decodeURIComponent(path).replace(/^\/+|\/+$/g, '');
-        return `https://api.github.com/repos/${owner}/${repo}/contents/${cleanPath}`;
-      } catch {
-        return null;
+    function getGithubContentsUrlFromFolderUrl(folderUrl) {
+      const url = new URL(folderUrl, location.href);
+      const segments = url.pathname.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
+
+      if (url.hostname.endsWith('.github.io') && segments.length >= 2) {
+        const [repoName, ...rest] = segments;
+        const owner = url.hostname.replace(/\.github\.io$/i, '');
+        const cleanPath = rest.join('/');
+        return `https://api.github.com/repos/${owner}/${repoName}/contents/${cleanPath ? `${cleanPath}` : ''}`;
       }
+
+      const githubTreeMatch = url.href.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/tree\/[^/]+\/(.+)$/i);
+      if (githubTreeMatch) {
+        const [, owner, repo, path] = githubTreeMatch;
+        return `https://api.github.com/repos/${owner}/${repo}/contents/${decodeURIComponent(path)}`;
+      }
+
+      return null;
     }
     async function loadFolderCatalog(folderUrl) {
       const folder = new URL(folderUrl, location.href);
-      const githubApiUrl = toGitHubContentsUrl(folder.href);
+      const githubApiUrl = getGithubContentsUrlFromFolderUrl(folder.href);
 
       let fileUrls = [];
       if (githubApiUrl) {
