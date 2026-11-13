@@ -7,7 +7,7 @@ Copyright (c) 2026 mkview. All rights reserved.
 
 This source file is part of the Art project and is licensed under the
 Boost Software License 1.0 (BSL-1.0).
-See the LICENSE file in this repository for the full license text.
+See the LICENSE file in the repository for the full license text.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -206,22 +206,67 @@ See the LICENSE file in this repository for the full license text.
       if (!window.ExifReader) throw new Error('JPEG metadata reader failed to load');
       return imageFromMetadata(url, ExifReader.load(buffer));
     }
+    function toGitHubContentsUrl(folderUrl) {
+      try {
+        const url = new URL(folderUrl);
+        const match = url.hostname === 'github.com' && url.pathname.match(/^\/([^/]+)\/([^/]+)\/tree\/[^/]+\/(.+)$/);
+        if (!match) return null;
+        const [, owner, repo, path] = match;
+        const cleanPath = decodeURIComponent(path).replace(/^\/+|\/+$/g, '');
+        return `https://api.github.com/repos/${owner}/${repo}/contents/${cleanPath}`;
+      } catch {
+        return null;
+      }
+    }
     async function loadFolderCatalog(folderUrl) {
-      const response = await fetch(folderUrl);
-      if (!response.ok) throw new Error(`Could not list images in ${folderUrl}. The server must allow directory listings.`);
-      const html = await response.text();
-      const folder = new URL(folderUrl);
-      if (!folder.pathname.endsWith('/')) folder.pathname += '/';
-      const imageUrls = [...new DOMParser().parseFromString(html, 'text/html').querySelectorAll('a[href]')]
-        .map(link => new URL(link.getAttribute('href'), folder))
-        .filter(url => url.origin === folder.origin && url.pathname.startsWith(folder.pathname) &&
-          !url.pathname.slice(folder.pathname.length).includes('/') && /\.jpe?g$/i.test(url.pathname));
-      const uniqueUrls = [...new Set(imageUrls.map(url => url.href))].sort((a, b) => a.localeCompare(b));
+      const folder = new URL(folderUrl, location.href);
+      const githubApiUrl = toGitHubContentsUrl(folder.href);
+
+      let fileUrls = [];
+      if (githubApiUrl) {
+        const response = await fetch(githubApiUrl, { headers: { Accept: 'application/vnd.github+json' } });
+        if (!response.ok) throw new Error(`Could not list images in ${folderUrl}`);
+        const entries = await response.json();
+        if (!Array.isArray(entries)) throw new Error(`Unexpected image listing from ${folderUrl}`);
+        fileUrls = entries
+          .filter(entry => entry && entry.type === 'file' && /\.jpe?g$/i.test(entry.name))
+          .map(entry => entry.download_url || entry.url?.replace('https://api.github.com/repos/', 'https://raw.githubusercontent.com/').replace('/contents/', '/'));
+      } else {
+        const response = await fetch(folder.href);
+        if (!response.ok) throw new Error(`Could not list images in ${folderUrl}. The server must allow directory listings.`);
+        const html = await response.text();
+        const listing = new DOMParser().parseFromString(html, 'text/html');
+        fileUrls = [...listing.querySelectorAll('a[href]')]
+          .map(link => link.getAttribute('href'))
+          .filter(href => href && /\.jpe?g$/i.test(href))
+          .map(href => new URL(href, folder.href).href);
+      }
+
+      if (!fileUrls.length) {
+        throw new Error(`No JPEG images were found in ${folderUrl}.`);
+      }
+
+      const uniqueUrls = [...new Set(fileUrls)].sort((a, b) => a.localeCompare(b));
       const results = [];
       for (let i = 0; i < uniqueUrls.length; i += 6) {
         const batch = await Promise.all(uniqueUrls.slice(i, i + 6).map(async url => {
           try { return await readImageMetadata(url); }
-          catch (error) { console.warn(`Skipping unreadable JPEG metadata for ${url}:`, error); return null; }
+          catch (error) {
+            console.warn(`Skipping unreadable JPEG metadata for ${url}:`, error);
+            const filename = decodeURIComponent(new URL(url).pathname.split('/').pop() || '').replace(/\.jpe?g$/i, '').replace(/[_-]+/g, ' ');
+            return {
+              url,
+              title: filename || 'Untitled',
+              keywords: '',
+              year: '',
+              medium: '',
+              technic: '',
+              width: '',
+              height: '',
+              dimensions: '',
+              dimensionsFromMetadata: false
+            };
+          }
         }));
         results.push(...batch.filter(Boolean));
       }
@@ -233,7 +278,7 @@ See the LICENSE file in this repository for the full license text.
     }
     async function initCatalog() {
       if (!siteConfig.imgFolderUrl) {
-        throw new Error('ImgFolderUrl must be configured to load images from JPEG metadata.');
+        throw new Error('ImgFolderUrl must be configured to load images from a JPEG folder.');
       }
       allImages = await loadFolderCatalog(siteConfig.imgFolderUrl);
 
