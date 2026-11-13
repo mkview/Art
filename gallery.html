@@ -47,6 +47,7 @@ See the LICENSE file in this repository for the full license text.
     .metadata p { margin:4px 0; color:#aaa; font-size:14px; }
     @media(max-width:700px) { header { flex-direction:column; } .grid-view { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); padding:12px; gap:12px; } .preview-frame { height:150px; } .nav-arrow { display:none; } .single-view { position:fixed; z-index:5; } .image-stage { height:70vh; flex:none; } .metadata { padding:18px 12px; } }
   </style>
+  <script defer src="https://cdn.jsdelivr.net/npm/exifreader@4.23.5/dist/exif-reader.min.js"></script>
 </head>
 <body>
   <header>
@@ -98,12 +99,14 @@ See the LICENSE file in this repository for the full license text.
       const response = await fetch(configUrl);
       if (!response.ok) throw new Error(`Could not load configuration from ${configUrl}`);
       const data = await response.json();
+      const folderValue = data.ImgFolderUrl || data.imgFolderUrl || data.img_folder_url;
       return {
         configUrl,
         brandName: data.brandName || data.brand_name || 'Artist Portfolio',
         logoUrl: resolveDataUrl(data.logoUrl || data.logo_url, 'logo.jpeg', configUrl),
         galleriesUrl: resolveDataUrl(data.galleriesUrl || data.galleries_url, 'galleries.json', configUrl),
         imagesUrl: resolveDataUrl(data.imagesUrl || data.images_url, 'images.json', configUrl),
+        imgFolderUrl: folderValue ? new URL(folderValue, configUrl).href : null,
         measurementUnits: data.measurementUnits || data.measurement_units || ''
       };
     }
@@ -115,10 +118,111 @@ See the LICENSE file in this repository for the full license text.
       homeHubBtn.href = makeViewerUrl('index.html');
     }
     function getSearchQuery() { return (new URLSearchParams(location.search).get('search') || '').trim().toLowerCase(); }
+
+    function metadataText(tag) {
+      if (!tag) return '';
+      const value = tag.description ?? tag.value ?? tag;
+      if (Array.isArray(value)) return value.map(part => typeof part === 'object' ? (part.description ?? part.value ?? '') : part).filter(Boolean).join(', ').trim();
+      return String(value ?? '').trim();
+    }
+    function findMetadata(tags, names) {
+      const entries = Object.entries(tags || {}).map(([key, tag]) => [key.toLowerCase().replace(/[^a-z0-9]/g, ''), tag]);
+      for (const name of names) {
+        const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const found = entries.find(([key]) => key === normalized);
+        if (found) {
+          const text = metadataText(found[1]);
+          if (text) return text;
+        }
+      }
+      return '';
+    }
+    function parseDescriptionFields(description) {
+      if (!description) return {};
+      try {
+        const parsed = JSON.parse(description);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+      } catch { /* Accept the common unquoted-key, comma-separated metadata form too. */ }
+
+      const fields = {};
+      const keyPattern = /(?:^|,)\s*(year|medium|technic|technique|width|height|dimensions)\s*:\s*/ig;
+      const matches = [...description.matchAll(keyPattern)];
+      matches.forEach((match, index) => {
+        const valueStart = match.index + match[0].length;
+        const next = matches[index + 1];
+        const valueEnd = next ? next.index : description.length;
+        const value = description.slice(valueStart, valueEnd).replace(/,\s*$/, '').trim().replace(/^(["'])(.*)\1$/, '$2');
+        if (value) fields[match[1].toLowerCase()] = value;
+      });
+      return fields;
+    }
+    function imageFromMetadata(url, tags) {
+      const title = findMetadata(tags, ['Document Title', 'XMP-dc:Title', 'dc:title', 'Object Name', 'Title']);
+      const keywords = findMetadata(tags, ['Keywords', 'XMP-dc:Subject', 'dc:subject', 'Subject']);
+      const description = findMetadata(tags, ['Description', 'Image Description', 'XMP-dc:Description', 'dc:description', 'Caption-Abstract', 'User Comment']);
+      const fields = parseDescriptionFields(description);
+      const filename = decodeURIComponent(new URL(url).pathname.split('/').pop() || '').replace(/\.jpe?g$/i, '').replace(/[_-]+/g, ' ');
+      return {
+        url,
+        title: title || filename || 'Untitled',
+        keywords,
+        year: fields.year || '',
+        medium: fields.medium || '',
+        technic: fields.technic || fields.technique || '',
+        width: fields.width || '',
+        height: fields.height || '',
+        dimensions: fields.dimensions || ''
+      };
+    }
+    async function readImageMetadata(url) {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Could not read image metadata from ${url}`);
+      const buffer = await response.arrayBuffer();
+      if (!window.ExifReader) throw new Error('JPEG metadata reader failed to load');
+      return imageFromMetadata(url, ExifReader.load(buffer));
+    }
+    async function loadFolderCatalog(folderUrl) {
+      const response = await fetch(folderUrl);
+      if (!response.ok) throw new Error(`Could not list images in ${folderUrl}. The server must allow directory listings.`);
+      const html = await response.text();
+      const folder = new URL(folderUrl);
+      if (!folder.pathname.endsWith('/')) folder.pathname += '/';
+      const imageUrls = [...new DOMParser().parseFromString(html, 'text/html').querySelectorAll('a[href]')]
+        .map(link => new URL(link.getAttribute('href'), folder))
+        .filter(url => url.origin === folder.origin && url.pathname.startsWith(folder.pathname) &&
+          !url.pathname.slice(folder.pathname.length).includes('/') && /\.jpe?g$/i.test(url.pathname));
+      const uniqueUrls = [...new Set(imageUrls.map(url => url.href))].sort((a, b) => a.localeCompare(b));
+      const results = [];
+      for (let i = 0; i < uniqueUrls.length; i += 6) {
+        const batch = await Promise.all(uniqueUrls.slice(i, i + 6).map(async url => {
+          try { return await readImageMetadata(url); }
+          catch (error) { console.warn(`Skipping unreadable JPEG metadata for ${url}:`, error); return null; }
+        }));
+        results.push(...batch.filter(Boolean));
+      }
+      return results;
+    }
+    async function initCatalog() {
+      if (siteConfig.imgFolderUrl) {
+        allImages = await loadFolderCatalog(siteConfig.imgFolderUrl);
+      } else {
+        const response = await fetch(siteConfig.imagesUrl);
+        if (!response.ok) throw new Error(`Could not load images from ${siteConfig.imagesUrl}`);
+        allImages = await response.json();
+        allImages.forEach(image => { if (image.url) image.url = new URL(image.url, siteConfig.imagesUrl).href; });
+      }
+      const query = getSearchQuery();
+      filteredImages = query
+        ? allImages.filter(image => [image.title, image.keywords, image.medium, image.technic].some(value => (value || '').toLowerCase().includes(query)))
+        : [...allImages];
+      renderGrid();
+    }
     function formatDimensions(item) {
       const unit = siteConfig?.measurementUnits ? String(siteConfig.measurementUnits).trim() : '';
-      if (item && item.width !== undefined && item.height !== undefined && item.width !== null && item.height !== null) {
-        return `${item.width}${unit} × ${item.height}${unit}`;
+      if (item && item.width !== undefined && item.height !== undefined && item.width !== null && item.height !== null && item.width !== '' && item.height !== '') {
+        const width = String(item.width);
+        const height = String(item.height);
+        return `${width}${unit && !/[a-z]/i.test(width) ? unit : ''} × ${height}${unit && !/[a-z]/i.test(height) ? unit : ''}`;
       }
       return item?.dimensions || '';
     }
@@ -127,15 +231,6 @@ See the LICENSE file in this repository for the full license text.
       const technic = item.technic || '';
       if (medium && technic) return `${medium} (${technic})`;
       return medium || technic;
-    }
-    async function initCatalog() {
-      const response = await fetch(siteConfig.imagesUrl);
-      if (!response.ok) throw new Error(`Could not load images from ${siteConfig.imagesUrl}`);
-      allImages = await response.json();
-      allImages.forEach(image => { if (image.url) image.url = new URL(image.url, siteConfig.imagesUrl).href; });
-      const query = getSearchQuery();
-      filteredImages = query ? allImages.filter(image => [image.title,image.keywords,image.medium].some(value => (value || '').toLowerCase().includes(query))) : [...allImages];
-      renderGrid();
     }
     function renderGrid() {
       workspace.classList.remove('show-single');
@@ -231,7 +326,7 @@ See the LICENSE file in this repository for the full license text.
     }
     window.addEventListener('load', async () => {
       try { siteConfig = await loadSiteConfig(); applyBranding(); await Promise.all([initCatalog(),loadGalleryTitle()]); }
-      catch (error) { console.error(error); gridView.textContent = 'Unable to load configuration or artwork data. Check the config URL.'; }
+      catch (error) { console.error(error); gridView.textContent = 'Unable to load configuration or artwork data. Check the config URL and image folder listing/CORS settings.'; }
     });
   </script>
 </body>
