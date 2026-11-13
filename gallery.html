@@ -116,7 +116,6 @@ See the LICENSE file in the repository for the full license text.
         logoUrl: resolveDataUrl(data.logoUrl || data.logo_url, 'logo.jpeg', configUrl),
         galleriesUrl: resolveDataUrl(data.galleriesUrl || data.galleries_url, 'galleries.json', configUrl),
         imgFolderUrl: folderValue ? new URL(folderValue, configUrl).href : null,
-        measurementUnits: data.measurementUnits || data.measurement_units || '',
         selected: data.Selected && typeof data.Selected === 'object' && !Array.isArray(data.Selected) ? data.Selected : null
       };
     }
@@ -307,11 +306,7 @@ See the LICENSE file in the repository for the full license text.
     }
     function formatDimensions(item) {
       if (item && item.width !== undefined && item.height !== undefined && item.width !== null && item.height !== null && item.width !== '' && item.height !== '') {
-        if (item.dimensionsFromMetadata) return `${item.width} × ${item.height}`;
-        const unit = siteConfig?.measurementUnits ? String(siteConfig.measurementUnits).trim() : '';
-        const width = String(item.width);
-        const height = String(item.height);
-        return `${width}${unit && !/[a-z]/i.test(width) ? unit : ''} × ${height}${unit && !/[a-z]/i.test(height) ? unit : ''}`;
+        return `${item.width} × ${item.height}`;
       }
       return item?.dimensions || '';
     }
