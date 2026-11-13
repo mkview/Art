@@ -127,6 +127,11 @@ See the LICENSE file in this repository for the full license text.
       }
       return terms;
     }
+    function formatSearchTerms(query) {
+      const terms = splitSearchTerms(query);
+      if (!terms.length) return '';
+      return terms.map(term => term.replace(/\b\w/g, char => char.toUpperCase())).join(', ');
+    }
 
     function metadataText(tag) {
       if (!tag) return '';
@@ -336,8 +341,12 @@ See the LICENSE file in this repository for the full license text.
         if (!response.ok) throw new Error('Could not load galleries');
         const galleries = await response.json();
         const current = galleries.find(gallery => (gallery.searchCriteria || '').trim().toLowerCase() === query);
-        titleEl.textContent = `• ${current?.title || query.charAt(0).toUpperCase()+query.slice(1)}`;
-      } catch (error) { console.error(error); titleEl.textContent = `• ${query}`; }
+        const displayText = current?.title || formatSearchTerms(query) || query.charAt(0).toUpperCase() + query.slice(1);
+        titleEl.textContent = displayText;
+      } catch (error) {
+        console.error(error);
+        titleEl.textContent = formatSearchTerms(query) || query;
+      }
     }
     window.addEventListener('load', async () => {
       try { siteConfig = await loadSiteConfig(); applyBranding(); await Promise.all([initCatalog(),loadGalleryTitle()]); }
