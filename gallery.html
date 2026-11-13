@@ -119,7 +119,13 @@ See the LICENSE file in this repository for the full license text.
     }
     function getSearchQuery() { return (new URLSearchParams(location.search).get('search') || '').trim().toLowerCase(); }
     function splitSearchTerms(query) {
-      return [...new Set((query || '').split(/[\s,]+/).map(term => term.trim().toLowerCase()).filter(Boolean))];
+      const terms = [];
+      const pattern = /"([^"]+)"|([^,\s]+)/g;
+      for (const match of query.matchAll(pattern)) {
+        const term = (match[1] || match[2]).trim().toLowerCase();
+        if (term && !terms.includes(term)) terms.push(term);
+      }
+      return terms;
     }
 
     function metadataText(tag) {
