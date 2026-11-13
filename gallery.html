@@ -116,7 +116,8 @@ See the LICENSE file in this repository for the full license text.
         logoUrl: resolveDataUrl(data.logoUrl || data.logo_url, 'logo.jpeg', configUrl),
         galleriesUrl: resolveDataUrl(data.galleriesUrl || data.galleries_url, 'galleries.json', configUrl),
         imgFolderUrl: folderValue ? new URL(folderValue, configUrl).href : null,
-        measurementUnits: data.measurementUnits || data.measurement_units || ''
+        measurementUnits: data.measurementUnits || data.measurement_units || '',
+        selected: data.Selected && typeof data.Selected === 'object' && !Array.isArray(data.Selected) ? data.Selected : null
       };
     }
     function applyBranding() {
@@ -226,19 +227,30 @@ See the LICENSE file in this repository for the full license text.
       }
       return results;
     }
+    function selectedFilename(value) {
+      const name = String(value || '').replace(/\\/g, '/').split('/').pop() || '';
+      try { return decodeURIComponent(name).toLowerCase(); } catch { return name.toLowerCase(); }
+    }
     async function initCatalog() {
       if (!siteConfig.imgFolderUrl) {
         throw new Error('ImgFolderUrl must be configured to load images from JPEG metadata.');
       }
       allImages = await loadFolderCatalog(siteConfig.imgFolderUrl);
 
-      const terms = splitSearchTerms(getSearchQuery());
-      filteredImages = terms.length
-        ? allImages.filter(image => {
-            const haystacks = [image.title, image.keywords, image.medium, image.technic].map(value => (value || '').toLowerCase());
-            return terms.some(term => haystacks.some(value => value.includes(term)));
-          })
-        : [...allImages];
+      if (siteConfig.selected && Array.isArray(siteConfig.selected.images)) {
+        const imagesByFilename = new Map(allImages.map(image => [selectedFilename(new URL(image.url).pathname), image]));
+        filteredImages = siteConfig.selected.images
+          .map(selectedName => imagesByFilename.get(selectedFilename(selectedName)))
+          .filter(Boolean);
+      } else {
+        const terms = splitSearchTerms(getSearchQuery());
+        filteredImages = terms.length
+          ? allImages.filter(image => {
+              const haystacks = [image.title, image.keywords, image.medium, image.technic].map(value => (value || '').toLowerCase());
+              return terms.some(term => haystacks.some(value => value.includes(term)));
+            })
+          : [...allImages];
+      }
       renderGrid();
     }
     function formatDimensions(item) {
@@ -338,15 +350,18 @@ See the LICENSE file in this repository for the full license text.
       if (event.key === 'Escape' && !document.fullscreenElement) exitToGrid();
     });
     async function loadGalleryTitle() {
-      const query = getSearchQuery(); if (!query) return;
       const titleEl = document.getElementById('galleryTitle');
+      if (siteConfig.selected && typeof siteConfig.selected.title === 'string') {
+        titleEl.textContent = siteConfig.selected.title;
+        return;
+      }
+      const query = getSearchQuery(); if (!query) return;
       try {
         const response = await fetch(siteConfig.galleriesUrl);
         if (!response.ok) throw new Error('Could not load galleries');
         const galleries = await response.json();
         const current = galleries.find(gallery => (gallery.searchCriteria || '').trim().toLowerCase() === query);
-        const displayText = current?.title || formatSearchTerms(query) || query.charAt(0).toUpperCase() + query.slice(1);
-        titleEl.textContent = displayText;
+        titleEl.textContent = current?.title || formatSearchTerms(query) || query.charAt(0).toUpperCase() + query.slice(1);
       } catch (error) {
         console.error(error);
         titleEl.textContent = formatSearchTerms(query) || query;
