@@ -39,6 +39,8 @@ See the LICENSE file in this repository for the full license text.
     .search-form { display:flex; gap:8px; max-width:600px; margin:auto; }
     .search-input { min-width:0; flex:1; padding:11px; color:var(--text); background:var(--panel); border:1px solid #444; border-radius:4px; }
     .info-box { padding:16px; background:var(--panel); border:1px solid #333; border-radius:6px; }
+    .info-box h2:first-child { margin-top:0; }
+    .info-box p:last-child { margin-bottom:0; }
     #readme { max-width:900px; margin:32px auto; padding:24px; line-height:1.6; }
     #readme pre { white-space:pre-wrap; }
     @media(max-width:650px) { header { align-items:flex-start; flex-direction:column; } nav { flex-wrap:wrap; } main { padding:16px; } }
@@ -67,8 +69,8 @@ See the LICENSE file in this repository for the full license text.
           </form>
         </div>
       </section>
-      <section id="about-section" class="content-section"><h1>About</h1><div class="info-box"><p>Artist information can be added here.</p></div></section>
-      <section id="contact-section" class="content-section"><h1>Contact</h1><div class="info-box"><p>Contact information can be added here.</p></div></section>
+      <section id="about-section" class="content-section"><h1>About</h1><div id="aboutContent" class="info-box"><p>Artist information can be added here.</p></div></section>
+      <section id="contact-section" class="content-section"><h1>Contact</h1><div id="contactContent" class="info-box"><p>Contact information can be added here.</p></div></section>
     </main>
   </div>
   <script>
@@ -131,8 +133,57 @@ See the LICENSE file in this repository for the full license text.
         logoUrl: resolveDataUrl(data.logoUrl || data.logo_url, 'logoUrl', configUrl),
         galleriesUrl: resolveDataUrl(data.galleriesUrl || data.galleries_url, 'galleriesUrl', configUrl),
         imagesUrl: resolveDataUrl(data.imagesUrl || data.images_url, 'imagesUrl', configUrl),
-        searchPlaceholder: data.searchPlaceholder || data.search_placeholder || DEFAULT_CONFIG.searchPlaceholder
+        searchPlaceholder: data.searchPlaceholder || data.search_placeholder || DEFAULT_CONFIG.searchPlaceholder,
+        about: data.about || data.aboutContent || data.about_content,
+        contact: data.contact,
+        contactEmail: data.contactEmail || data.contact_email
       };
+    }
+    function appendTextParagraph(container, value) {
+      if (typeof value !== 'string' || !value.trim()) return;
+      const paragraph = document.createElement('p');
+      paragraph.textContent = value;
+      container.appendChild(paragraph);
+    }
+    function renderAbout(about) {
+      const container = document.getElementById('aboutContent');
+      container.replaceChildren();
+      const sections = Array.isArray(about) ? about : [about];
+      sections.forEach(section => {
+        if (typeof section === 'string') {
+          appendTextParagraph(container, section);
+          return;
+        }
+        if (!section || typeof section !== 'object') return;
+        if (typeof section.title === 'string' && section.title.trim()) {
+          const title = document.createElement('h2');
+          title.textContent = section.title;
+          container.appendChild(title);
+        }
+        const paragraphs = Array.isArray(section.paragraphs) ? section.paragraphs :
+          (section.paragraphs ? [section.paragraphs] : [section.content || section.description]);
+        paragraphs.forEach(paragraph => appendTextParagraph(container, paragraph));
+      });
+      if (!container.childElementCount) appendTextParagraph(container, 'Artist information can be added here.');
+    }
+    function renderContact(contact, contactEmail) {
+      const container = document.getElementById('contactContent');
+      container.replaceChildren();
+      if (typeof contact === 'string') appendTextParagraph(container, contact);
+      else if (contact && typeof contact === 'object') {
+        appendTextParagraph(container, contact.message || contact.description);
+        appendTextParagraph(container, contact.phone);
+        contactEmail = contactEmail || contact.email;
+      }
+      if (typeof contactEmail === 'string' && contactEmail.trim()) {
+        const paragraph = document.createElement('p');
+        const link = document.createElement('a');
+        link.href = `mailto:${contactEmail.trim()}`;
+        link.textContent = contactEmail.trim();
+        paragraph.appendChild(link);
+        container.appendChild(paragraph);
+      }
+      if (!container.childElementCount) appendTextParagraph(container, 'Contact information can be added here.');
     }
     async function loadHub() {
       const grid = document.getElementById('galleriesGrid');
@@ -142,6 +193,8 @@ See the LICENSE file in this repository for the full license text.
         document.querySelector('.brand-name').textContent = siteConfig.brandName;
         document.querySelector('.logo-img').src = siteConfig.logoUrl;
         document.getElementById('searchInput').placeholder = siteConfig.searchPlaceholder;
+        renderAbout(siteConfig.about);
+        renderContact(siteConfig.contact, siteConfig.contactEmail);
         const response = await fetch(siteConfig.galleriesUrl);
         if (!response.ok) throw new Error(`Could not load galleries from ${siteConfig.galleriesUrl}`);
         const galleries = await response.json();
