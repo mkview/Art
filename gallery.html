@@ -115,7 +115,6 @@ See the LICENSE file in this repository for the full license text.
         brandName: data.brandName || data.brand_name || 'Artist Portfolio',
         logoUrl: resolveDataUrl(data.logoUrl || data.logo_url, 'logo.jpeg', configUrl),
         galleriesUrl: resolveDataUrl(data.galleriesUrl || data.galleries_url, 'galleries.json', configUrl),
-        imagesUrl: resolveDataUrl(data.imagesUrl || data.images_url, 'images.json', configUrl),
         imgFolderUrl: folderValue ? new URL(folderValue, configUrl).href : null,
         measurementUnits: data.measurementUnits || data.measurement_units || ''
       };
@@ -228,14 +227,10 @@ See the LICENSE file in this repository for the full license text.
       return results;
     }
     async function initCatalog() {
-      if (siteConfig.imgFolderUrl) {
-        allImages = await loadFolderCatalog(siteConfig.imgFolderUrl);
-      } else {
-        const response = await fetch(siteConfig.imagesUrl);
-        if (!response.ok) throw new Error(`Could not load images from ${siteConfig.imagesUrl}`);
-        allImages = await response.json();
-        allImages.forEach(image => { if (image.url) image.url = new URL(image.url, siteConfig.imagesUrl).href; });
+      if (!siteConfig.imgFolderUrl) {
+        throw new Error('ImgFolderUrl must be configured to load images from JPEG metadata.');
       }
+      allImages = await loadFolderCatalog(siteConfig.imgFolderUrl);
 
       const terms = splitSearchTerms(getSearchQuery());
       filteredImages = terms.length
