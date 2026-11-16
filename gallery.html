@@ -109,12 +109,16 @@ See the LICENSE file in this repository for the full license text.
       const response = await fetch(configUrl);
       if (!response.ok) throw new Error(`Could not load configuration from ${configUrl}`);
       const data = await response.json();
-      const folderUrls = data.ImgFolderUrls || data.imgFolderUrls || data.img_folder_urls;
+      const folderValues = data.ImgFolderUrls || data.imgFolderUrls || data.img_folder_urls;
+      const legacyFolderValue = data.ImgFolderUrl || data.imgFolderUrl || data.img_folder_url;
+      const folderUrls = Array.isArray(folderValues)
+        ? folderValues
+        : (legacyFolderValue ? [legacyFolderValue] : []);
       return {
         configUrl,
-        brandName: data.BrandName || data.brandName || data.brand_name || 'Artist Portfolio',
-        logoUrl: resolveDataUrl(data.LogoUrl || data.logoUrl || data.logo_url, 'logo.jpeg', configUrl),
-        galleriesUrl: resolveDataUrl(data.GalleriesUrl || data.galleriesUrl || data.galleries_url, 'galleries.json', configUrl),
+        brandName: data.brandName || data.brand_name || 'Artist Portfolio',
+        logoUrl: resolveDataUrl(data.logoUrl || data.logo_url, 'logo.jpeg', configUrl),
+        galleriesUrl: resolveDataUrl(data.galleriesUrl || data.galleries_url, 'galleries.json', configUrl),
         imgFolderUrls: folderUrls
           .filter(value => typeof value === 'string' && value.trim())
           .map(value => new URL(value, configUrl).href),
