@@ -292,7 +292,12 @@ See the LICENSE file in this repository for the full license text.
       if (!siteConfig.imgFolderUrls.length) {
         throw new Error('ImgFolderUrls must contain at least one JPEG folder URL.');
       }
-      const catalogs = await Promise.all(siteConfig.imgFolderUrls.map(loadFolderCatalog));
+ 
+      const catalogs = [];
+      for (const folderUrl of siteConfig.imgFolderUrls) {
+        const catalog = await loadFolderCatalog(folderUrl);
+        catalogs.push(catalog);
+      }
       allImages = catalogs.flat();
 
       if (siteConfig.selected && Array.isArray(siteConfig.selected.images)) {
