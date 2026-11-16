@@ -7,7 +7,7 @@ Copyright (c) 2026 mkview. All rights reserved.
 
 This source file is part of the Art project and is licensed under the
 Boost Software License 1.0 (BSL-1.0).
-See the LICENSE file in the repository for the full license text.
+See the LICENSE file in this repository for the full license text.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -109,13 +109,19 @@ See the LICENSE file in the repository for the full license text.
       const response = await fetch(configUrl);
       if (!response.ok) throw new Error(`Could not load configuration from ${configUrl}`);
       const data = await response.json();
-      const folderValue = data.ImgFolderUrl || data.imgFolderUrl || data.img_folder_url;
+      const folderValues = data.ImgFolderUrls || data.imgFolderUrls || data.img_folder_urls;
+      const legacyFolderValue = data.ImgFolderUrl || data.imgFolderUrl || data.img_folder_url;
+      const folderUrls = Array.isArray(folderValues)
+        ? folderValues
+        : (legacyFolderValue ? [legacyFolderValue] : []);
       return {
         configUrl,
         brandName: data.brandName || data.brand_name || 'Artist Portfolio',
         logoUrl: resolveDataUrl(data.logoUrl || data.logo_url, 'logo.jpeg', configUrl),
         galleriesUrl: resolveDataUrl(data.galleriesUrl || data.galleries_url, 'galleries.json', configUrl),
-        imgFolderUrl: folderValue ? new URL(folderValue, configUrl).href : null,
+        imgFolderUrls: folderUrls
+          .filter(value => typeof value === 'string' && value.trim())
+          .map(value => new URL(value, configUrl).href),
         selected: data.Selected && typeof data.Selected === 'object' && !Array.isArray(data.Selected) ? data.Selected : null
       };
     }
@@ -283,10 +289,11 @@ See the LICENSE file in the repository for the full license text.
       try { return decodeURIComponent(name).toLowerCase(); } catch { return name.toLowerCase(); }
     }
     async function initCatalog() {
-      if (!siteConfig.imgFolderUrl) {
-        throw new Error('ImgFolderUrl must be configured to load images from a JPEG folder.');
+      if (!siteConfig.imgFolderUrls.length) {
+        throw new Error('ImgFolderUrls must contain at least one JPEG folder URL.');
       }
-      allImages = await loadFolderCatalog(siteConfig.imgFolderUrl);
+      const catalogs = await Promise.all(siteConfig.imgFolderUrls.map(loadFolderCatalog));
+      allImages = catalogs.flat();
 
       if (siteConfig.selected && Array.isArray(siteConfig.selected.images)) {
         const imagesByFilename = new Map(allImages.map(image => [selectedFilename(new URL(image.url).pathname), image]));
